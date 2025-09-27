@@ -1,69 +1,364 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <script type='text/javascript' src='https://cdn.scaledrone.com/scaledrone.min.js'></script>
-  <!--<script type='text/javascript' src='http://0.0.0.0:8080/scaledrone.js'></script>-->
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width">
-  <style>
-    body {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 13px;
-      display: flex;
-      flex-direction: column;
-      max-height: 100vh;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scaledrone Chat Client</title>
+<script src="https://cdn.scaledrone.com/scaledrone.min.js"></script>
+<style>
+body {
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+  background:#f5f5f5;
+  color:#000;
+}
+body.dark { background:#121212; color:#e0e0e0; }
 
-    .members-count,
-    .members-list,
-    .messages {
-      border: 1px solid #e4e4e4;
-      padding: 15px;
-      margin-bottom: 15px;
-    }
+/* Top controls */
+.top-controls {
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  padding:10px;
+  position:relative;
+  z-index:1001;
+}
+.button {
+  width:40px;
+  height:40px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  border:none;
+  border-radius:8px;
+  background:#ddd;
+  transition: background 0.2s ease;
+}
+body.dark .button { background:#333; }
+.button:hover { background:#ccc; }
+body.dark .button:hover { background:#444; }
+.button svg { width:24px; height:24px; fill:#333; }
+body.dark .button svg { fill:#ffd700; }
 
-    .messages {
-      flex-shrink: 1;
-      overflow: auto;
-    }
+/* Settings panel */
+#settingsPanel {
+  display:flex;
+  flex-direction:column;
+  padding:12px;
+  border-radius:12px;
+  width:240px;
+  position:absolute;
+  top:60px;
+  right:0;
+  z-index:1000;
+  transform: translateX(120%);
+  transition: transform 0.3s ease;
+  backdrop-filter: blur(10px);
+  background: rgba(240,240,240,0.7);
+}
+#settingsPanel.show { transform: translateX(0); }
+body.dark #settingsPanel { background: rgba(34,34,34,0.7); }
 
-    .message {
-      padding: 5px 0;
-    }
-    .message .member {
-      display: inline-block;
-    }
+#settingsPanel label {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-bottom:8px;
+}
+#settingsPanel input[type="text"], 
+#settingsPanel input[type="color"] {
+  flex:1;
+  box-sizing:border-box;
+  border-radius:6px;
+  border:1px solid #aaa;
+  padding:4px;
+  font-size:14px;
+  background:inherit;
+  color:inherit;
+}
+#settingsPanel button {
+  border:none;
+  border-radius:6px;
+  padding:6px 10px;
+  cursor:pointer;
+  background:#ddd;
+}
+body.dark #settingsPanel button { background:#333; color:#eee; }
 
-    .member {
-      padding-right: 10px;
-      position: relative;
-    }
+/* Members and chat area */
+.members-count, .members-list, .messages {
+  border:1px solid transparent;
+  padding:15px;
+  margin:10px;
+  border-radius:10px;
+  background:rgba(255,255,255,0.7);
+  backdrop-filter: blur(6px);
+}
+body.dark .members-count, 
+body.dark .members-list, 
+body.dark .messages { background:rgba(30,30,30,0.7); }
 
-    .message-form {
-      display: flex;
-      flex-shrink: 0;
-    }
-    .message-form__input {
-      flex-grow: 1;
-      border: 1px solid #dfdfdf;
-      padding: 10px 15px;
-      font-size: 16px;
-    }
-    .message-form__button {
-      margin: 10px;
-    }
-  </style>
+.messages { flex:1; overflow:auto; }
+.message { padding:5px 0; }
+.message .member { display:inline-block; font-weight:bold; }
+.member { padding-right:10px; }
+.timestamp { font-size:0.8em; color:#666; margin-left:5px; }
+body.dark .timestamp { color:#aaa; }
+
+/* Message form */
+.message-form { display:flex; padding:10px; gap:5px; }
+.message-form__input { flex:1; padding:10px; font-size:16px; border-radius:8px; border:1px solid #ccc; }
+body.dark .message-form__input { background:#222; color:#e0e0e0; border-color:#444; }
+.message-form__button { padding:10px 15px; cursor:pointer; border-radius:8px; border:none; background:#ddd; }
+body.dark .message-form__button { background:#333; color:#eee; }
+
+/* Emoji picker */
+#emojiPicker {
+  position:absolute;
+  bottom:60px;
+  right:10px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px;
+  max-width:220px;
+  border-radius:12px;
+  padding:8px;
+  backdrop-filter: blur(10px);
+  background: rgba(240,240,240,0.6);
+  opacity:0;
+  pointer-events:none;
+  transform:translateY(20px);
+  transition: transform 0.3s cubic-bezier(0.25,1.5,0.5,1), opacity 0.3s ease;
+  z-index:1000;
+}
+body.dark #emojiPicker { background: rgba(34,34,34,0.6); }
+#emojiPicker.show {
+  opacity:1;
+  pointer-events:auto;
+  transform:translateY(0);
+}
+#emojiPicker span { cursor:pointer; font-size:22px; user-select:none; }
+</style>
 </head>
 <body>
-  <div class="members-count">-</div>
-  <div class="members-list">-</div>
-  <div class="messages"></div>
-  <form class="message-form" onsubmit="return false;">
-    <input class="message-form__input" placeholder="Type a message.." type="text"/>
-    <input class="message-form__button" value="Send" type="submit"/>
-  </form>
-  <script src="./script.js"></script>
+
+<div class="top-controls">
+  <div id="darkToggle" class="button" title="Toggle Dark Theme">
+    <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 000 18 9 9 0 000-18zm0 16a7 7 0 010-14v14z"/></svg>
+  </div>
+  <div id="settingsButton" class="button" title="Settings">
+    <svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zm7.43-2.43l1.77-1.03-1-1.73-1.77 1.03a7.98 7.98 0 0 0-1.51-.88l-.27-2.05h-2l-.27 2.05c-.52.18-1.01.43-1.51.88L6.8 10.34l-1 1.73 1.77 1.03c-.05.33-.08.67-.08 1s.03.67.08 1l-1.77 1.03 1 1.73 1.77-1.03c.5.45.99.7 1.51.88l.27 2.05h2l.27-2.05c.52-.18 1.01-.43 1.51-.88l1.77 1.03 1-1.73-1.77-1.03c.05-.33.08-.67.08-1s-.03-.67-.08-1z"/></svg>
+  </div>
+</div>
+
+<div id="settingsPanel">
+  <label><input type="text" id="nameInput" placeholder="Your Name" /></label>
+  <label><input type="color" id="colorInput" title="Pick your name color"/></label>
+  <label><input type="text" id="channelInput" placeholder="Channel ID" /></label>
+  <label><input type="checkbox" id="showTimestamp" checked> Show Timestamps</label>
+  <label><input type="checkbox" id="militaryTime"> 24-Hour Time</label>
+  <button id="resetName">Reset Name & Color</button>
+  <span id="connectedLabel">-</span>
+</div>
+
+<div id="emojiPicker">
+  <span>😀</span><span>😂</span><span>😎</span><span>😍</span><span>👍</span><span>🎉</span>
+</div>
+
+<div class="members-count">-</div>
+<div class="members-list">-</div>
+<div class="messages"></div>
+
+<form class="message-form">
+  <input class="message-form__input" placeholder="Type a message.." type="text"/>
+  <button type="button" id="emojiButton" class="button" title="Emoji Picker">
+    <svg viewBox="0 0 24 24"><path d="M12 22a10 10 0 100-20 10 10 0 000 20zm-5-7h2v2H7v-2zm8 0h2v2h-2v-2zm-8-6h10v2H7V9zm0 4h10v2H7v-2z"/></svg>
+  </button>
+  <input class="message-form__button" type="submit" value="Send"/>
+</form>
+
+<audio id="pingSound" src="https://www.soundjay.com/button/beep-07.wav"></audio>
+
+<script>
+const darkToggle = document.getElementById('darkToggle');
+const settingsButton = document.getElementById('settingsButton');
+const settingsPanel = document.getElementById('settingsPanel');
+const nameInput = document.getElementById('nameInput');
+const colorInput = document.getElementById('colorInput');
+const channelInput = document.getElementById('channelInput');
+const resetNameButton = document.getElementById('resetName');
+const connectedLabel = document.getElementById('connectedLabel');
+const membersCount = document.querySelector('.members-count');
+const membersList = document.querySelector('.members-list');
+const messages = document.querySelector('.messages');
+const form = document.querySelector('.message-form');
+const inputField = document.querySelector('.message-form__input');
+const emojiButton = document.getElementById('emojiButton');
+const emojiPicker = document.getElementById('emojiPicker');
+const pingSound = document.getElementById('pingSound');
+const showTimestampCheckbox = document.getElementById('showTimestamp');
+const militaryTimeCheckbox = document.getElementById('militaryTime');
+
+let drone, members = [];
+
+darkToggle.onclick = () => document.body.classList.toggle('dark');
+
+settingsButton.onclick = e => {
+  e.stopPropagation();
+  settingsPanel.classList.toggle('show');
+  emojiPicker.classList.remove('show');
+};
+
+emojiButton.onclick = e => {
+  e.stopPropagation();
+  emojiPicker.classList.toggle('show');
+  settingsPanel.classList.remove('show');
+};
+
+document.addEventListener('click', e => {
+  if(!settingsPanel.contains(e.target) && e.target !== settingsButton){
+    settingsPanel.classList.remove('show');
+  }
+  if(!emojiPicker.contains(e.target) && e.target !== emojiButton){
+    emojiPicker.classList.remove('show');
+  }
+});
+
+emojiPicker.querySelectorAll('span').forEach(e=>{
+  e.onclick = () => { inputField.value += e.textContent; inputField.focus(); };
+});
+
+const defaultChannel = '4cNswoNqM2wVFHPg';
+const storedChannel = localStorage.getItem('scaledroneChannel') || defaultChannel;
+channelInput.value = storedChannel;
+const storedName = localStorage.getItem('scaledroneName') || '';
+nameInput.value = storedName;
+colorInput.value = localStorage.getItem('scaledroneColor') || '#'+Math.floor(Math.random()*0xFFFFFF).toString(16);
+
+showTimestampCheckbox.checked = localStorage.getItem('showTimestamp') !== 'false';
+militaryTimeCheckbox.checked = localStorage.getItem('militaryTime') === 'true';
+
+showTimestampCheckbox.addEventListener('change', ()=>{ 
+  localStorage.setItem('showTimestamp', showTimestampCheckbox.checked);
+  updateAllTimestamps();
+});
+militaryTimeCheckbox.addEventListener('change', ()=>{ 
+  localStorage.setItem('militaryTime', militaryTimeCheckbox.checked);
+  updateAllTimestamps();
+});
+
+resetNameButton.onclick = () => {
+  nameInput.value = '';
+  colorInput.value = '#'+Math.floor(Math.random()*0xFFFFFF).toString(16);
+  localStorage.removeItem('scaledroneName');
+  localStorage.setItem('scaledroneColor', colorInput.value);
+  connectChannel(channelInput.value);
+};
+
+function getRandomName(){
+  const adjs=["autumn","hidden","bitter","misty","silent","empty","dry","dark","summer","icy","delicate","quiet","white","cool","spring","winter","patient","twilight","dawn","crimson","wispy","weathered","blue","billowing","broken","cold","damp","falling","frosty","green","long","late","lingering","bold","little","morning","muddy","old","red","rough","still","small","sparkling","throbbing","shy","wandering","withered","wild","black","young","holy","solitary","fragrant","aged","snowy","proud","floral","restless","divine","polished","ancient","purple","lively","nameless"];
+  const nouns=["waterfall","river","breeze","moon","rain","wind","sea","morning","snow","lake","sunset","pine","shadow","leaf","dawn","glitter","forest","hill","cloud","meadow","sun","glade","bird","brook","butterfly","bush","dew","dust","field","fire","flower","firefly","feather","grass","haze","mountain","night","pond","darkness","snowflake","silence","sound","sky","shape","surf","thunder","violet","water","wildflower","wave","water","resonance","sun","wood","dream","cherry","tree","fog","frost","voice","paper","frog","smoke","star"];
+  return adjs[Math.floor(Math.random()*adjs.length)] + '_' + nouns[Math.floor(Math.random()*nouns.length)];
+}
+function getRandomColor(){ return '#'+Math.floor(Math.random()*0xFFFFFF).toString(16); }
+
+function connectChannel(channelID){
+  if(drone) drone.close();
+  const name = nameInput.value.trim() || getRandomName();
+  const color = colorInput.value || getRandomColor();
+  localStorage.setItem('scaledroneChannel',channelID);
+  localStorage.setItem('scaledroneName',name);
+  localStorage.setItem('scaledroneColor',color);
+  members = [];
+  membersList.innerHTML = '';
+  membersCount.innerText = '-';
+  messages.innerHTML = '';
+  connectedLabel.innerText = 'Connecting...';
+  drone = new ScaleDrone(channelID,{data:{name,color}});
+  drone.on('open', err=>{
+    if(err){ connectedLabel.innerText='Error'; return; }
+    connectedLabel.innerText='Connected to ' + channelID;
+    const room = drone.subscribe('observable-room');
+    room.on('open', err=>{ if(err) console.error(err); });
+    room.on('members', m=>{ members=m; updateMembers(); });
+    room.on('member_join', m=>{ members.push(m); updateMembers(); });
+    room.on('member_leave', ({id})=>{ members=members.filter(x=>x.id!==id); updateMembers(); });
+    room.on('data', (text, member)=>{ if(member) addMessage(member,text); });
+  });
+  drone.on('close', ()=>{ connectedLabel.innerText='Disconnected'; });
+  drone.on('error', ()=>{ connectedLabel.innerText='Error'; });
+}
+
+function updateMembers(){
+  membersCount.innerText = members.length + ' users in room:';
+  membersList.innerHTML='';
+  members.forEach(m=>{
+    const el=document.createElement('div'); el.className='member';
+    el.textContent=m.clientData.name;
+    el.style.color=m.clientData.color;
+    membersList.appendChild(el);
+  });
+}
+
+function formatTime(date){
+  let hours=date.getHours();
+  let minutes=date.getMinutes().toString().padStart(2,'0');
+  if(!militaryTimeCheckbox.checked){
+    const ampm=hours>=12?'PM':'AM';
+    hours=hours%12||12;
+    return `${hours}:${minutes} ${ampm}`;
+  } else { return `${hours.toString().padStart(2,'0')}:${minutes}`; }
+}
+
+function updateAllTimestamps(){
+  document.querySelectorAll('.message').forEach(msg=>{
+    const ts=msg.querySelector('.timestamp');
+    if(ts){
+      if(showTimestampCheckbox.checked){ ts.textContent=' '+formatTime(new Date()); }
+      else{ ts.remove(); }
+    } else if(showTimestampCheckbox.checked){
+      const timeSpan=document.createElement('span');
+      timeSpan.className='timestamp';
+      timeSpan.textContent=' '+formatTime(new Date());
+      msg.appendChild(timeSpan);
+    }
+  });
+}
+
+function addMessage(member,text){
+  const el=document.createElement('div'); el.className='message';
+  const nameSpan=document.createElement('span'); nameSpan.className='member';
+  nameSpan.textContent=member.clientData.name+': ';
+  nameSpan.style.color=member.clientData.color;
+  el.appendChild(nameSpan);
+  el.appendChild(document.createTextNode(text));
+  if(showTimestampCheckbox.checked){
+    const timeSpan=document.createElement('span'); timeSpan.className='timestamp';
+    timeSpan.textContent=' '+formatTime(new Date());
+    el.appendChild(timeSpan);
+  }
+  messages.appendChild(el);
+  messages.scrollTop=messages.scrollHeight;
+  if(document.hidden) pingSound.play();
+}
+
+[nameInput,colorInput,channelInput].forEach(input=>{
+  input.addEventListener('change',()=>{ connectChannel(channelInput.value); });
+});
+
+form.addEventListener('submit',e=>{
+  e.preventDefault();
+  const val=inputField.value.trim();
+  if(!val) return;
+  inputField.value='';
+  drone.publish({room:'observable-room',message:val});
+});
+
+connectChannel(storedChannel);
+</script>
 </body>
 </html>
